@@ -8,58 +8,74 @@
 
 ---
 
-## What it does
-
-Disaster Response Vision ingests images or video streams, runs **COCO-pretrained YOLOv5 / YOLOv8** inference via the Ultralytics API, filters for life-sign classes (person, dog, cat, bird, and 7 other animals), persists every detection to a relational database, and fires **deduplicated async email alerts** when life signs are found. The entire pipeline is accessible three ways: a **Typer CLI**, a **FastAPI REST service**, and a legacy interactive menu preserved from the original project.
-
-This is an honest portfolio rebuild — benchmark metrics are computed by `evaluation/benchmark.py` running `model.val()` on a CC-BY-4.0 licensed dataset. No numbers are hand-typed. Models are **not** fine-tuned for disaster zones; see [Limitations](#limitations).
+## 📖 Table of Contents
+1. [Project Overview & Motivation](#project-overview--motivation)
+2. [Key Engineering Features](#key-engineering-features)
+3. [System Architecture](#system-architecture)
+4. [Component Deep Dive](#component-deep-dive)
+5. [Project Structure](#project-structure)
+6. [Quickstart Guides](#quickstart-guides)
+7. [CLI Reference](#cli-reference)
+8. [API Reference & Examples](#api-reference--examples)
+9. [Configuration Guide](#configuration-guide)
+10. [Benchmark & Metrics](#benchmark--metrics)
+11. [Development & Testing](#development--testing)
+12. [Limitations](#limitations)
 
 ---
 
-## Key engineering features
+## 🌍 Project Overview & Motivation
 
-| Feature | Implementation |
+In the aftermath of natural disasters (earthquakes, floods, hurricanes), rapid detection of life is critical for search and rescue operations. Unmanned Aerial Vehicles (UAVs) and drones can capture vast amounts of aerial imagery and video, but manually reviewing this footage is time-consuming.
+
+**Disaster Response Vision** is an automated pipeline designed to ingest images or video streams, detect signs of life (people and animals) using state-of-the-art YOLO object detection models, log the findings to a relational database, and immediately dispatch deduplicated email alerts to rescue coordinators.
+
+Originally a university prototype ("TOC Project"), this repository represents a complete, professional rebuild focusing on **reliability, type-safety, testability, and deployment readiness**.
+
+---
+
+## 🚀 Key Engineering Features
+
+| Feature | Implementation Details |
 |---|---|
-| **Unified model interface** | Single `Detector` class switches between YOLOv5 and YOLOv8 weights by filename; lazy-loads model on first call |
-| **Structured detections** | Frozen `Detection` + `BoundingBox` dataclasses — typed, hashable, serialisable |
-| **Async email alerts** | `aiosmtplib`-based async send with SHA-256-keyed in-memory deduplication; configurable suppression window |
-| **Dual database support** | SQLAlchemy 2.0 ORM — defaults to SQLite (zero setup), swaps to PostgreSQL via `DATABASE_URL` env var |
-| **Schema migrations** | Alembic migration `001_initial_schema` covers `media_records` + `detection_records` tables |
-| **REST API** | FastAPI with Pydantic v2 request/response schemas, background alert tasks, and auto `/docs` |
-| **CLI** | Typer with `detect`, `alert-test`, and `legacy-menu` subcommands; discovers media recursively |
-| **One-command Docker** | `docker compose up --build` starts API + PostgreSQL with health-checks and volume persistence |
-| **Real benchmark** | `model.val()` on Ultralytics COCO128 (CC BY 4.0); latency measured per-image after warm-up; charts generated from JSON — no hardcoded numbers |
-| **Test suite** | pytest unit tests for dedup logic, mocked-YOLO detector, and in-memory-SQLite repository |
-| **CI/CD** | GitHub Actions matrix (Python 3.11 + 3.12): ruff lint → mypy type-check → pytest with coverage |
+| **Unified Model Interface** | The `Detector` class abstracts the differences between YOLOv5 and YOLOv8. It infers the model family by filename and lazy-loads the PyTorch weights on the first inference call to save memory. |
+| **Domain-Driven Design** | Detection results are parsed into frozen, type-hinted `Detection` and `BoundingBox` dataclasses, ensuring strong typing and serializability across the API and DB layers. |
+| **Smart Alert Deduplication** | To prevent spamming coordinators during a continuous video feed, the `AlertDeduplicator` generates a SHA-256 hash of the detected classes and suppresses duplicate email alerts within a configurable time window (default 5 minutes). |
+| **Asynchronous Emailing** | Alerts are dispatched using `aiosmtplib` as FastAPI `BackgroundTasks`, ensuring that the API response is not blocked while waiting for the SMTP server handshake. |
+| **Dual Database Support** | Built on SQLAlchemy 2.0. Defaults to SQLite for frictionless local development, but seamlessly swaps to PostgreSQL for production deployments via the `DATABASE_URL` environment variable. |
+| **Alembic Migrations** | Database schema evolution is managed via Alembic. The `001_initial_schema` migration creates the `media_records` and `detection_records` tables with proper foreign keys and indices. |
+| **Containerized Deployment** | A highly optimized `Dockerfile` and `docker-compose.yml` allow for one-command deployment of the API and PostgreSQL database, complete with volume persistence and health checks. |
 
 ---
 
-## Architecture
+## 🏗️ System Architecture
+
+The system is decoupled into discrete layers: Input interfaces (CLI/API), the Core Processing engine, and the Storage/Alerting integrations.
 
 ```mermaid
 flowchart TD
-    subgraph Inputs
+    subgraph Inputs ["Input Layer"]
         A1[Image file / directory]
         A2[Video file / stream]
-        A3[REST upload]
+        A3[REST API Upload]
     end
 
-    subgraph Core["disaster_vision package"]
+    subgraph Core ["Core Processing (disaster_vision)"]
         B["Detector\n(YOLOv5 / YOLOv8)"]
-        C["VideoProcessor\n(OpenCV frame loop)"]
-        D["AlertDeduplicator\n(SHA-256 keyed, time-windowed)"]
+        C["VideoProcessor\n(OpenCV Frame Loop)"]
+        D["AlertDeduplicator\n(SHA-256 / Time-Window)"]
         E["EmailAlerter\n(async aiosmtplib)"]
         F["DetectionRepository\n(SQLAlchemy 2.0)"]
     end
 
-    subgraph Interfaces
-        G["CLI  disaster-vision detect"]
-        H["FastAPI  POST /detect/*\nGET /detections\nGET /health"]
+    subgraph Interfaces ["Access Interfaces"]
+        G["CLI: disaster-vision detect"]
+        H["FastAPI: POST /detect/*\nGET /detections"]
     end
 
-    subgraph Storage
-        I[(SQLite\nlocal dev)]
-        J[(PostgreSQL\nDocker / prod)]
+    subgraph Storage ["Storage Layer"]
+        I[(SQLite - Local Dev)]
+        J[(PostgreSQL - Prod)]
     end
 
     A1 & A2 --> G --> B
@@ -74,237 +90,261 @@ flowchart TD
 
 ---
 
-## Project structure
+## 🔍 Component Deep Dive
+
+### 1. Object Detection (`src/disaster_vision/detection/`)
+Powered by Ultralytics, the pipeline filters down the 80 COCO classes to only **11 life-sign classes** (person, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe). The `VideoProcessor` uses OpenCV (`cv2.VideoCapture`) to iterate through video frames, running inference on each frame and aggregating the results without requiring the entire video to fit into RAM.
+
+### 2. Alerting Engine (`src/disaster_vision/alerts/`)
+When a life-sign is detected, an `AlertPayload` is constructed. The `AlertDeduplicator` creates a unique key based on the detected classes and the source name. If an alert with that key was sent within the `ALERT_DEDUP_SECONDS` window, the new alert is silently dropped to prevent inbox flooding. If it passes, `EmailAlerter` formats a MIME multipart email and dispatches it via TLS.
+
+### 3. Data Persistence (`src/disaster_vision/db/`)
+The `DetectionRepository` acts as a Unit of Work. When media is processed, it first creates a `MediaRecord` (storing the filename and timestamp). It then bulk-inserts `DetectionRecord`s (storing bounding box coordinates, confidence scores, and class names) linked via a foreign key.
+
+---
+
+## 📂 Project Structure
 
 ```
 disaster-response-vision/
 ├── src/disaster_vision/
-│   ├── config.py               # pydantic-settings — all config from env
-│   ├── logging_config.py       # structured root-logger setup
-│   ├── cli.py                  # Typer CLI entry point
-│   ├── legacy_menu.py          # preserved original menu (img/vid/alert)
+│   ├── config.py               # Settings management via pydantic-settings
+│   ├── logging_config.py       # Standardized structured logging
+│   ├── cli.py                  # Typer CLI application
+│   ├── legacy_menu.py          # Preserved interactive terminal menu
 │   ├── detection/
-│   │   ├── detector.py         # Detector, Detection, BoundingBox, LIFE_CLASSES
-│   │   └── video.py            # VideoProcessor (OpenCV frame loop)
+│   │   ├── detector.py         # YOLO abstraction & Data Models
+│   │   └── video.py            # OpenCV video stream processing
 │   ├── alerts/
-│   │   ├── dedup.py            # AlertDeduplicator (configurable window)
-│   │   └── email_alert.py      # EmailAlerter — sync + async SMTP, AlertPayload
+│   │   ├── dedup.py            # Rate-limiting and deduplication logic
+│   │   └── email_alert.py      # SMTP dispatch and payload formatting
 │   ├── db/
-│   │   ├── models.py           # SQLAlchemy ORM: MediaRecord, DetectionRecord
-│   │   └── repository.py       # DetectionRepository — single data-access layer
+│   │   ├── models.py           # SQLAlchemy declarative base and tables
+│   │   └── repository.py       # CRUD operations and session management
 │   ├── api/
-│   │   ├── main.py             # FastAPI app, lifespan, background tasks
-│   │   └── schemas.py          # Pydantic v2 request/response models
+│   │   ├── main.py             # FastAPI routing and lifecycle hooks
+│   │   └── schemas.py          # Pydantic v2 validation models
 │   └── evaluation/
-│       └── benchmark.py        # Real YOLO benchmark — no hardcoded metrics
-├── tests/
-│   ├── test_dedup.py           # Deduplication logic unit tests
-│   ├── test_detector.py        # Detector with mocked YOLO
-│   └── test_repository.py      # Repository layer (in-memory SQLite)
-├── alembic/versions/
-│   └── 001_initial_schema.py   # Initial DB migration
-├── scripts/
-│   ├── download_weights.py     # Fetch YOLOv5s + YOLOv8n via Ultralytics
-│   └── download_sample_data.py # Download CC-licensed COCO sample images
-├── .github/workflows/ci.yml    # GitHub Actions: lint → type-check → test
-├── Dockerfile                  # python:3.11-slim, installs package + weights
-├── docker-compose.yml          # API + PostgreSQL, one-command deploy
-├── pyproject.toml              # PEP 517 build, entry-points, ruff, mypy config
-└── .env.example                # All config keys documented, no real values
+│       └── benchmark.py        # Automated COCO128 mAP and latency benchmarking
+├── tests/                      # Pytest suite with mocked dependencies
+├── alembic/                    # Database migration scripts
+├── scripts/                    # Utilities for fetching weights and sample data
+├── .github/workflows/ci.yml    # CI/CD pipeline (Lint, Type-check, Test)
+├── Dockerfile                  # Multi-stage container build
+├── docker-compose.yml          # Local cluster orchestration
+├── pyproject.toml              # PEP-517 metadata and tool configuration
+└── .env.example                # Environment variable template
 ```
 
 ---
 
-## Quickstart
+## ⚡ Quickstart Guides
 
-### Option A — Docker (recommended, zero setup)
+### Option A: Docker Compose (Production-Ready)
+The fastest way to run the full stack, including PostgreSQL.
 
 ```bash
+git clone https://github.com/Lohithaswin/Life-detection-in-Disaster-zones.git
 cd disaster-response-vision
-cp .env.example .env        # optional: fill in SMTP_ vars for email alerts
+
+# Set up environment variables (add SMTP details if you want emails)
+cp .env.example .env
+
+# Build and spin up the API and Database
 docker compose up --build
 ```
+* **API Documentation:** `http://localhost:8000/docs`
+* **Health Check:** `http://localhost:8000/health`
 
-API live at **http://localhost:8000** · Interactive docs at **http://localhost:8000/docs**
-
-### Option B — Local Python
+### Option B: Local Python Environment (Development)
+Ideal for modifying code, running the CLI, or executing tests. Requires Python 3.10+.
 
 ```bash
 cd disaster-response-vision
 
+# 1. Create and activate a virtual environment
 python -m venv .venv
 # Windows:
 .venv\Scripts\activate
 # macOS/Linux:
 source .venv/bin/activate
 
+# 2. Install the package in editable mode with development dependencies
 pip install -e ".[dev]"
 
+# 3. Setup configuration and download required assets
 cp .env.example .env
-python scripts/download_weights.py          # fetches yolov8n.pt + yolov5s.pt
-python scripts/download_sample_data.py      # downloads 3 CC-licensed sample images
+python scripts/download_weights.py          # Fetches yolov8n.pt and yolov5s.pt
+python scripts/download_sample_data.py      # Downloads CC-licensed test images
 
-# Run detection on sample images (no DB, no alerts)
-disaster-vision detect data/samples --no-alert --no-db
+# 4. Initialize the SQLite database
+alembic upgrade head
 
-# Start the API server
+# 5. Start the API server
 disaster-vision-api
 ```
 
-### Apply DB migrations
+---
 
+## 💻 CLI Reference
+
+The `disaster-vision` CLI provides direct access to the pipeline without needing the HTTP server.
+
+| Command | Description |
+|---------|-------------|
+| `disaster-vision detect <path>` | Run inference on a file or recursively on a directory. |
+| `disaster-vision alert-test` | Send a test email to verify SMTP configuration. |
+| `disaster-vision legacy-menu` | Launch the original interactive terminal menu. |
+
+**Detection Flags:**
+* `--model <name>`: Specify weights (default: `yolov8n`).
+* `--life-only`: Ignore non-life classes (e.g., cars, chairs).
+* `--no-alert`: Disable email dispatch.
+* `--no-db`: Disable database persistence.
+
+**Examples:**
 ```bash
-alembic upgrade head
+# Process a single video using YOLOv5, persisting to DB but sending no emails
+disaster-vision detect data/samples/drone_feed.mp4 --model yolov5s --no-alert
+
+# Process a folder of images, alerting only on people/animals
+disaster-vision detect data/samples/ --life-only
 ```
 
 ---
 
-## CLI reference
+## 🌐 API Reference & Examples
 
-```bash
-# Detect in an image, video, or directory (recursive)
-disaster-vision detect <source> [--model yolov8n] [--life-only] [--no-alert] [--no-db]
+The FastAPI service exposes the pipeline over HTTP.
 
-# Send a test alert email (validates SMTP config)
-disaster-vision alert-test
-
-# Original interactive menu
-disaster-vision legacy-menu
-```
-
-**Example — detect only people/animals in all images under a folder:**
-```bash
-disaster-vision detect data/samples --life-only --model yolov5s
-```
-
----
-
-## API reference
+### Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Returns `{"status": "ok", "version": "..."}` |
-| `GET` | `/detections?limit=100` | Recent detection records from DB |
-| `POST` | `/detect/image` | Upload image (multipart/form-data) → detections + optional alert |
-| `POST` | `/detect/video` | Upload video (multipart/form-data) → detections + optional alert |
+| `GET` | `/health` | API Liveness probe. |
+| `GET` | `/detections?limit=100` | Fetch the most recent detection records from the database. |
+| `POST` | `/detect/image` | Upload an image for immediate inference. |
+| `POST` | `/detect/video` | Upload a video for frame-by-frame inference. |
 
-**POST `/detect/image` form fields:**
+### Python Request Example (`POST /detect/image`)
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `file` | file | — | Image file (jpg/png) |
-| `model` | string | `yolov8n` | Model name or weight filename |
-| `life_only` | bool | `false` | Filter to person/animal classes only |
-| `send_alert` | bool | `true` | Send email if life signs detected |
-| `persist` | bool | `true` | Write results to database |
+```python
+import requests
 
-Full interactive docs: `http://localhost:8000/docs`
+url = "http://localhost:8000/detect/image"
+files = {"file": ("rubble.jpg", open("rubble.jpg", "rb"), "image/jpeg")}
+data = {
+    "model": "yolov8n",
+    "life_only": True,
+    "send_alert": True,
+    "persist": True
+}
 
----
+response = requests.post(url, files=files, data=data)
+print(response.json())
+```
 
-## Configuration
-
-All settings are read from environment variables (or a `.env` file). Copy `.env.example` to `.env` and edit:
-
-```ini
-# Detection
-DEFAULT_MODEL=yolov8n
-CONFIDENCE_THRESHOLD=0.25
-
-# Database — SQLite (local) or PostgreSQL (production)
-DATABASE_URL=sqlite:///./data/disaster_vision.db
-# DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/disaster_vision
-
-# Email alerts (optional)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=you@gmail.com
-SMTP_PASSWORD=your-app-password
-ALERT_TO=recipient@example.com
-ALERT_DEDUP_SECONDS=300   # suppress repeat alerts within 5 minutes
+**Example JSON Response:**
+```json
+{
+  "status": "success",
+  "media_name": "rubble.jpg",
+  "life_detected": true,
+  "detections": [
+    {
+      "class_name": "person",
+      "confidence": 0.89,
+      "bbox": {"x1": 120.5, "y1": 45.0, "x2": 200.1, "y2": 150.8}
+    }
+  ]
+}
 ```
 
 ---
 
-## Benchmark
+## ⚙️ Configuration Guide
 
-Run the benchmark to generate real metrics (requires `.[benchmark]` extras):
+The pipeline is entirely driven by environment variables, managed via `pydantic-settings`. 
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEFAULT_MODEL` | `yolov8n` | Fallback model if none is specified. |
+| `CONFIDENCE_THRESHOLD` | `0.25` | Minimum confidence score to register a detection. |
+| `DATABASE_URL` | `sqlite:///./data/disaster_vision.db` | Connection string. Change to `postgresql+psycopg2://...` for production. |
+| `SMTP_HOST` | `smtp.gmail.com` | SMTP server address. |
+| `SMTP_PORT` | `587` | SMTP server port (TLS). |
+| `SMTP_USER` | `""` | Email account used for authentication. |
+| `SMTP_PASSWORD`| `""` | **App Password** for the email account (do not use your real password). |
+| `ALERT_TO` | `""` | The destination email address for rescue alerts. |
+| `ALERT_DEDUP_SECONDS`| `300` | Time in seconds to suppress identical alerts (default: 5 mins). |
+
+> **Gmail App Password Note:** To use Gmail for sending alerts, you must enable 2-Step Verification on your Google account and generate an "App Password". Use this 16-character string as the `SMTP_PASSWORD`.
+
+---
+
+## 📊 Benchmark & Metrics
+
+We provide a reproducible benchmark script to evaluate model accuracy (mAP) and inference latency on your specific hardware. 
 
 ```bash
+# Install benchmark dependencies (matplotlib, seaborn, pandas)
 pip install -e ".[benchmark]"
-python scripts/download_weights.py --models yolov8n.pt yolov5s.pt
+# Execute the benchmark suite
 python -m disaster_vision.evaluation.benchmark
 ```
 
-- **Dataset:** Ultralytics `coco128.yaml` — 128-image subset of MS COCO train2017
-- **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-- **Method:** `model.val()` for mAP metrics; per-image latency measured over 15 runs after 3-run warm-up
-- **Output:** `evaluation/results/benchmark_results.json` + bar chart, mAP comparison, correlation heatmap
-
 ### Results (Local CPU Run)
-
 *Hardware: 11th Gen Intel Core i5-11300H @ 3.10GHz*
+*Dataset: Ultralytics COCO128 (128-image subset of MS COCO train2017)*
 
 | Model | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | Size (MB) | CPU Latency (ms) |
 |-------|---------|--------------|-----------|--------|-----------|------------------|
 | **yolov5s.pt** | 0.7354 | 0.5602 | 0.7959 | 0.6293 | 17.72 | 121.8 |
 | **yolov8n.pt** | 0.6054 | 0.4454 | 0.6385 | 0.5361 | 6.25 | 50.3 |
 
-*(See `disaster-response-vision/evaluation/results/` for full charts and JSON).*
+*(Full visual charts including correlation heatmaps and bar comparisons are generated in `evaluation/results/`).*
 
 ---
 
-## Running tests
+## 🛠️ Development & Testing
+
+We enforce strict code quality using Ruff and Mypy.
 
 ```bash
-pip install -e ".[dev]"
+# Run the test suite (with coverage)
 pytest tests/ -v --cov=disaster_vision
+
+# Run the linter and formatter
+ruff check src/ tests/
+ruff format src/ tests/
+
+# Run static type checking
+mypy src/disaster_vision/
 ```
 
-| Test file | What it covers |
-|---|---|
-| `test_dedup.py` | Deduplication window suppression and `clear()` reset |
-| `test_detector.py` | `Detector.detect_image()` with fully mocked YOLO model |
-| `test_repository.py` | Insert + list detections via in-memory SQLite |
+### CI/CD Pipeline
+Every push and pull request triggers a GitHub Actions workflow that:
+1. Provisions Ubuntu runners.
+2. Sets up a build matrix for **Python 3.11** and **Python 3.12**.
+3. Installs the package in isolated environments.
+4. Executes Ruff, Mypy, and Pytest.
 
 ---
 
-## Tech stack
+## ⚠️ Limitations & Future Work
 
-| Layer | Technology |
-|---|---|
-| Detection | [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) (YOLOv5 + YOLOv8), PyTorch 2.0+ |
-| Video | OpenCV 4.8+ |
-| API | FastAPI 0.100+, Uvicorn, Pydantic v2, python-multipart |
-| CLI | Typer |
-| Database | SQLAlchemy 2.0 (SQLite / PostgreSQL), Alembic |
-| Alerts | aiosmtplib (async SMTP), python-dotenv |
-| Config | pydantic-settings |
-| Packaging | pyproject.toml (PEP 517/660), setuptools src-layout |
-| Testing | pytest, pytest-cov |
-| Linting | ruff (E, F, I, UP, B rules) |
-| Type-checking | mypy |
-| CI | GitHub Actions (matrix: Python 3.11 + 3.12) |
-| Deploy | Docker, Docker Compose, PostgreSQL 16 |
+* **Pre-trained Weights Only:** The current implementation uses models trained on the standard COCO dataset. They have **not** been fine-tuned on disaster-specific imagery (e.g., thermal imaging, aerial rubble, obscured bodies). For real-world deployment, fine-tuning on datasets like AIDER or VisDrone is highly recommended.
+* **In-Memory Deduplication:** The `AlertDeduplicator` state is stored in RAM. If the FastAPI server restarts, or if you run multiple instances behind a load balancer, deduplication state is lost. Future iterations should back this with Redis.
+* **Synchronous Video API:** The `/detect/video` endpoint processes the video and returns a single JSON response. For large videos, this will cause HTTP timeouts. Future iterations should implement WebSockets or Server-Sent Events (SSE) to stream detection results back to the client in real-time.
 
 ---
 
-## Limitations
+## 🔒 Security
 
-- **COCO-pretrained only** — models were not fine-tuned on disaster-specific imagery. Accuracy on aerial, rubble-obscured, or thermal images will be lower than the COCO128 benchmark numbers suggest.
-- **COCO128 is a small benchmark subset** — 128 images from the training split, not the official COCO val set. Use the numbers for relative model comparison, not as absolute performance claims.
-- **No GPU in CI** — latency numbers in the benchmark are CPU-only unless you run it on a CUDA machine.
-- **API video upload** — the `/detect/video` endpoint loads the full video into memory; suitable for demos, not production-scale streaming.
-- **In-memory deduplication** — alert dedup state resets on process restart. A Redis/DB-backed dedup would be needed for multi-instance deployments.
+Prior iterations of this project ("TOC Project") inadvertently committed hardcoded credentials to the Git history. The repository has undergone a complete `git filter-repo` scrub. **No secrets exist in the current working tree or the commit history.** Always utilize the `.env` file for local development and securely inject environment variables in production.
 
 ---
 
-## Security
+## 📄 License
 
-Old commits (pre-rebuild) contained hardcoded SMTP and database credentials. Those commits have been rewritten with `git filter-repo`. The working tree and current history contain no real secrets. See [`docs/SCRUB_GIT_HISTORY.md`](docs/SCRUB_GIT_HISTORY.md) for methodology.
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
