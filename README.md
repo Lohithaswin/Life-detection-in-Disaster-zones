@@ -29,7 +29,7 @@ The architecture separates inference from side effects. The detection module eva
 ## Pipeline Walkthrough
 
 When media is submitted for processing (e.g., via the `/detect/image` API route or `disaster-vision detect` command):
-1. **Ingestion**: The file is saved to a temporary directory.
+1. **Ingestion**: The system resolves a media source (a local path for the CLI, or an uploaded file saved to a temporary directory for the API).
 2. **Inference**: The `Detector` class loads the specified YOLO model weights and runs a forward pass over the image (or frame-by-frame via `VideoProcessor`).
 3. **Filtering**: The raw tensor outputs are parsed into `Detection` dataclasses. If the `life_only` flag is true, bounding boxes for inanimate objects are discarded.
 4. **Persistence**: The `DetectionRepository` records the media filename and all bounding boxes into the SQLAlchemy database.
@@ -39,7 +39,7 @@ When media is submitted for processing (e.g., via the `/detect/image` API route 
 ## Component Reference
 
 - **Detection (`src/disaster_vision/detection/`)**: Encapsulates the Ultralytics YOLO library. `Detector` handles image inference and bounding box extraction. `VideoProcessor` manages frame extraction and looping without accumulating memory.
-- **Alerts (`src/disaster_vision/alerts/`)**: Manages external notifications. `EmailAlerter` formats and sends HTML emails. `AlertDeduplicator` maintains an in-memory hash map to suppress rapid, repeated alerts for the same event.
+- **Alerts (`src/disaster_vision/alerts/`)**: Manages external notifications. `EmailAlerter` formats and sends plain-text emails. `AlertDeduplicator` maintains an in-memory hash map to suppress rapid, repeated alerts for the same event.
 - **Database (`src/disaster_vision/db/`)**: Handles relational storage using SQLAlchemy. `DetectionRepository` provides the Unit of Work for inserting media records and bulk-inserting bounding boxes.
 - **API (`src/disaster_vision/api/`)**: Exposes the system over HTTP using FastAPI. `main.py` defines the routes, dependency injection for database sessions, and background task management for non-blocking email dispatch.
 - **Evaluation (`src/disaster_vision/evaluation/`)**: Contains benchmarking scripts to measure mAP and CPU/GPU inference latency against standard datasets.
@@ -157,7 +157,7 @@ The test suite utilizes `pytest` to verify the isolation and correctness of core
 - Unit tests for `AlertDeduplicator` verifying time-window suppression logic.
 - Integration tests for `DetectionRepository` utilizing an in-memory SQLite database to verify SQLAlchemy insertion and querying.
 
-Tests are executed locally via `python -m pytest tests/`. A GitHub Actions CI pipeline runs `ruff` for linting, `mypy` for static type checking, and the test suite across Python 3.10, 3.11, and 3.12 on every push to the repository.
+Tests are executed locally via `python -m pytest tests/`. A GitHub Actions CI pipeline runs `ruff` for linting, `mypy` for static type checking, and the test suite across Python 3.11 and 3.12 on every push to the repository.
 
 ## Security
 
