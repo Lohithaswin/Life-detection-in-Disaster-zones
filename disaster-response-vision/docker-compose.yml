@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: disaster
+      POSTGRES_PASSWORD: disaster
+      POSTGRES_DB: disaster_vision
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U disaster -d disaster_vision"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://disaster:disaster@db:5432/disaster_vision
+      LOG_LEVEL: INFO
+      WEIGHTS_DIR: /app/weights
+      DATA_DIR: /app/data
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      ALERT_FROM: ${ALERT_FROM:-}
+      ALERT_TO: ${ALERT_TO:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./runs:/app/runs
+
+volumes:
+  pgdata:

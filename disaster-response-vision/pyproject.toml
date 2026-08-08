@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "disaster-response-vision"
+version = "0.3.0"
+description = "YOLO-based object detection pipeline for disaster-zone imagery with alerts and API"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Disaster Response Vision contributors" }]
+keywords = ["computer-vision", "yolo", "disaster-response", "object-detection"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "ultralytics>=8.0.0",
+    "opencv-python>=4.8.0",
+    "torch>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "typer>=0.9.0",
+    "aiosmtplib>=3.0.0",
+    "python-multipart>=0.0.6",
+    "alembic>=1.13.0",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg2-binary>=2.9.0"]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "types-requests",
+]
+benchmark = ["matplotlib>=3.7.0", "seaborn>=0.12.0", "pandas>=2.0.0"]
+oracle = ["cx_Oracle>=8.3.0"]
+
+[project.scripts]
+disaster-vision = "disaster_vision.cli:main"
+disaster-vision-api = "disaster_vision.api.main:run_server"
+disaster-vision-benchmark = "disaster_vision.evaluation.benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

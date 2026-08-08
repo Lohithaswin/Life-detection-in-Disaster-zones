@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Sample media (download via scripts/download_sample_data.py)
+disaster-response-vision/data/samples/*
+!disaster-response-vision/data/samples/.gitkeep
+!disaster-response-vision/data/samples/ATTRIBUTION.md
+
+# Model weights (download via scripts/download_weights.py)
+disaster-response-vision/weights/*
+!disaster-response-vision/weights/.gitkeep
+
+# YOLO / Ultralytics outputs
+runs/
+wandb/
+
+# Model weight files anywhere in the repo
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+disaster-response-vision/evaluation/results/*
+!disaster-response-vision/evaluation/results/.gitkeep
+
+# Docker
+.docker/
+
+# Logs and databases (local dev artifacts)
+*.log
+*.sqlite
+*.db
+
+# Fabricated / generated chart artifacts (regenerate via evaluation/)
+disaster-response-vision/*.png
+!disaster-response-vision/docs/**/*.png
