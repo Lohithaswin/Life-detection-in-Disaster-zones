@@ -113,7 +113,10 @@ def save_results(results: list[ModelBenchmarkResult], output_dir: Path) -> Path:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "dataset": COCO_VAL_YAML,
         "dataset_license": "CC BY 4.0 (MS COCO val2017 subset)",
-        "methodology": "Ultralytics model.val() on held-out val2017 subset; latency = mean ms/image after warmup",
+        "methodology": (
+            "Ultralytics model.val() on held-out val2017 subset; "
+            "latency = mean ms/image after warmup"
+        ),
         "fine_tuning": "none — COCO-pretrained weights only",
         "models": [asdict(r) for r in results],
     }
