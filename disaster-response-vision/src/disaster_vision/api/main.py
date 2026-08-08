@@ -7,7 +7,7 @@ import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 

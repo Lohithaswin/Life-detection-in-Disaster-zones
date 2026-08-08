@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import smtplib
 from dataclasses import dataclass
@@ -70,7 +69,9 @@ class EmailAlerter:
             )
         return value
 
-    def _build_message(self, payload: AlertPayload, *, to_email: str) -> tuple[str, str, MIMEMultipart]:
+    def _build_message(
+        self, payload: AlertPayload, *, to_email: str
+    ) -> tuple[str, str, MIMEMultipart]:
         sender = self._require(
             self._settings.smtp_user or self._settings.alert_from,
             "SMTP_USER or ALERT_FROM",
@@ -84,7 +85,9 @@ class EmailAlerter:
         message.attach(MIMEText(payload.to_message_body(), "plain"))
         return sender, from_address, message
 
-    def send(self, payload: AlertPayload, *, to_email: str | None = None, skip_dedup: bool = False) -> bool:
+    def send(
+        self, payload: AlertPayload, *, to_email: str | None = None, skip_dedup: bool = False
+    ) -> bool:
         """Send an alert email synchronously. Returns True if sent."""
         if not skip_dedup and not self._deduplicator.should_send(payload.dedup_key()):
             return False

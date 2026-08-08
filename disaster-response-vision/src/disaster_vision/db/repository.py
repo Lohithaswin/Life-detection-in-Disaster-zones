@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
-from typing import Generator, Sequence
+from collections.abc import Generator, Sequence
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import Engine
