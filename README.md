@@ -139,10 +139,10 @@ The benchmark evaluates the system against a genuinely held-out subset of the MS
 *Hardware: 11th Gen Intel Core i5-11300H @ 3.10GHz*
 *Dataset: Ultralytics COCO val2017 (300-image held-out subset)*
 
-| Model | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | Size (MB) | CPU Latency (ms) |
-|-------|---------|--------------|-----------|--------|-----------|------------------|
-| **yolov5s.pt** | 0.6349 | 0.4696 | 0.7483 | 0.5348 | 17.72 | 117.45 |
-| **yolov8n.pt** | 0.5728 | 0.4120 | 0.6560 | 0.4846 | 6.25 | 83.68 |
+| Model | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | F1 Score | Fitness | Size (MB) | CPU Latency (ms) |
+|-------|---------|--------------|-----------|--------|----------|---------|-----------|------------------|
+| **yolov5s.pt** | 0.6349 | 0.4696 | 0.7483 | 0.5348 | 0.6238 | 0.4696 | 17.72 | 155.8 |
+| **yolov8n.pt** | 0.5728 | 0.4120 | 0.6560 | 0.4846 | 0.5574 | 0.4120 | 6.25 | 64.1 |
 
 ## Known Limitations
 

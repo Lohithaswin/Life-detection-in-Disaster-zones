@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-08T16:29:42.465514+00:00",
+  "generated_at": "2026-08-08T17:17:35.118493+00:00",
   "dataset": "coco_val_subset.yaml",
   "dataset_license": "CC BY 4.0 (MS COCO val2017 subset)",
   "methodology": "Ultralytics model.val() on held-out val2017 subset; latency = mean ms/image after warmup",
@@ -12,7 +12,9 @@
       "recall": 0.5348,
       "map50": 0.6349,
       "map50_95": 0.4696,
-      "inference_ms_cpu": 117.45,
+      "f1_score": 0.6238,
+      "fitness": 0.4696,
+      "inference_ms_cpu": 155.78,
       "inference_ms_gpu": null,
       "device_gpu": null
     },
@@ -23,7 +25,9 @@
       "recall": 0.4846,
       "map50": 0.5728,
       "map50_95": 0.412,
-      "inference_ms_cpu": 83.68,
+      "f1_score": 0.5574,
+      "fitness": 0.412,
+      "inference_ms_cpu": 64.08,
       "inference_ms_gpu": null,
       "device_gpu": null
     }

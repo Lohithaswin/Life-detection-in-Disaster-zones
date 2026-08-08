@@ -36,6 +36,8 @@ class ModelBenchmarkResult:
     recall: float
     map50: float
     map50_95: float
+    f1_score: float
+    fitness: float
     inference_ms_cpu: float
     inference_ms_gpu: float | None
     device_gpu: str | None
@@ -58,9 +60,11 @@ def _latency_ms(model, image_path: Path, *, device: str, runs: int = 15) -> floa
     return statistics.mean(samples)
 
 
-def _extract_val_metrics(metrics: Any) -> tuple[float, float, float, float]:
+def _extract_val_metrics(metrics: Any) -> tuple[float, float, float, float, float, float]:
     box = metrics.box
-    return float(box.mp), float(box.mr), float(box.map50), float(box.map)
+    mp, mr = float(box.mp), float(box.mr)
+    f1 = 2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0
+    return mp, mr, float(box.map50), float(box.map), f1, float(metrics.fitness)
 
 
 def benchmark_model(
@@ -78,7 +82,7 @@ def benchmark_model(
     logger.info("Running val() for %s on %s", load_name, data_yaml)
     model = YOLO(load_name)
     metrics = model.val(data=data_yaml, split="val", plots=True, verbose=False)
-    precision, recall, map50, map50_95 = _extract_val_metrics(metrics)
+    precision, recall, map50, map50_95, f1_score, fitness = _extract_val_metrics(metrics)
 
     size_mb = _model_size_mb(Path(getattr(model, "ckpt_path", weights_path)))
 
@@ -101,6 +105,8 @@ def benchmark_model(
         recall=round(recall, 4),
         map50=round(map50, 4),
         map50_95=round(map50_95, 4),
+        f1_score=round(f1_score, 4),
+        fitness=round(fitness, 4),
         inference_ms_cpu=round(cpu_ms, 2),
         inference_ms_gpu=round(gpu_ms, 2) if gpu_ms is not None else None,
         device_gpu=gpu_name,
@@ -137,7 +143,7 @@ def generate_charts(json_path: Path, output_dir: Path) -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    metrics_cols = ["precision", "recall", "map50", "map50_95", "model_size_mb", "inference_ms_cpu"]
+    metrics_cols = ["precision", "recall", "f1_score", "map50", "map50_95", "fitness", "model_size_mb", "inference_ms_cpu"]
     plot_df = df[["model"] + metrics_cols].set_index("model")
 
     ax = plot_df.plot(kind="bar", figsize=(10, 6), rot=0)
@@ -171,7 +177,7 @@ def generate_charts(json_path: Path, output_dir: Path) -> None:
 def print_summary_table(results: list[ModelBenchmarkResult]) -> None:
     header = (
         f"{'Model':<14} {'mAP@0.5':>8} {'mAP@0.5:0.95':>12} "
-        f"{'Prec':>8} {'Recall':>8} {'Size MB':>8} {'CPU ms':>8} {'GPU ms':>8}"
+        f"{'Prec':>8} {'Recall':>8} {'F1':>8} {'Fitness':>8} {'Size MB':>8} {'CPU ms':>8} {'GPU ms':>8}"
     )
     print(header)
     print("-" * len(header))
@@ -179,7 +185,7 @@ def print_summary_table(results: list[ModelBenchmarkResult]) -> None:
         gpu = f"{r.inference_ms_gpu:.1f}" if r.inference_ms_gpu is not None else "n/a"
         print(
             f"{r.model:<14} {r.map50:>8.4f} {r.map50_95:>12.4f} "
-            f"{r.precision:>8.4f} {r.recall:>8.4f} {r.model_size_mb:>8.2f} "
+            f"{r.precision:>8.4f} {r.recall:>8.4f} {r.f1_score:>8.4f} {r.fitness:>8.4f} {r.model_size_mb:>8.2f} "
             f"{r.inference_ms_cpu:>8.1f} {gpu:>8}"
         )
 
