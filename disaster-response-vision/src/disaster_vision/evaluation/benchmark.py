@@ -143,7 +143,16 @@ def generate_charts(json_path: Path, output_dir: Path) -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    metrics_cols = ["precision", "recall", "f1_score", "map50", "map50_95", "fitness", "model_size_mb", "inference_ms_cpu"]
+    metrics_cols = [
+        "precision",
+        "recall",
+        "f1_score",
+        "map50",
+        "map50_95",
+        "fitness",
+        "model_size_mb",
+        "inference_ms_cpu",
+    ]
     plot_df = df[["model"] + metrics_cols].set_index("model")
 
     ax = plot_df.plot(kind="bar", figsize=(10, 6), rot=0)
@@ -177,7 +186,8 @@ def generate_charts(json_path: Path, output_dir: Path) -> None:
 def print_summary_table(results: list[ModelBenchmarkResult]) -> None:
     header = (
         f"{'Model':<14} {'mAP@0.5':>8} {'mAP@0.5:0.95':>12} "
-        f"{'Prec':>8} {'Recall':>8} {'F1':>8} {'Fitness':>8} {'Size MB':>8} {'CPU ms':>8} {'GPU ms':>8}"
+        f"{'Prec':>8} {'Recall':>8} {'F1':>8} {'Fitness':>8} "
+        f"{'Size MB':>8} {'CPU ms':>8} {'GPU ms':>8}"
     )
     print(header)
     print("-" * len(header))
@@ -185,8 +195,8 @@ def print_summary_table(results: list[ModelBenchmarkResult]) -> None:
         gpu = f"{r.inference_ms_gpu:.1f}" if r.inference_ms_gpu is not None else "n/a"
         print(
             f"{r.model:<14} {r.map50:>8.4f} {r.map50_95:>12.4f} "
-            f"{r.precision:>8.4f} {r.recall:>8.4f} {r.f1_score:>8.4f} {r.fitness:>8.4f} {r.model_size_mb:>8.2f} "
-            f"{r.inference_ms_cpu:>8.1f} {gpu:>8}"
+            f"{r.precision:>8.4f} {r.recall:>8.4f} {r.f1_score:>8.4f} {r.fitness:>8.4f} "
+            f"{r.model_size_mb:>8.2f} {r.inference_ms_cpu:>8.1f} {gpu:>8}"
         )
 
 
