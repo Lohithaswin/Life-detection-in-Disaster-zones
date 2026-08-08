@@ -241,7 +241,16 @@ python -m disaster_vision.evaluation.benchmark
 - **Method:** `model.val()` for mAP metrics; per-image latency measured over 15 runs after 3-run warm-up
 - **Output:** `evaluation/results/benchmark_results.json` + bar chart, mAP comparison, correlation heatmap
 
-> Benchmark results are not committed because they depend on your hardware. Run the command above to produce them locally. The script prints a summary table you can paste directly into this README.
+### Results (Local CPU Run)
+
+*Hardware: 11th Gen Intel Core i5-11300H @ 3.10GHz*
+
+| Model | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | Size (MB) | CPU Latency (ms) |
+|-------|---------|--------------|-----------|--------|-----------|------------------|
+| **yolov5s.pt** | 0.7354 | 0.5602 | 0.7959 | 0.6293 | 17.72 | 121.8 |
+| **yolov8n.pt** | 0.6054 | 0.4454 | 0.6385 | 0.5361 | 6.25 | 50.3 |
+
+*(See `disaster-response-vision/evaluation/results/` for full charts and JSON).*
 
 ---
 
