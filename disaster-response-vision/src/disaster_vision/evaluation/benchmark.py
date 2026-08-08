@@ -1,10 +1,11 @@
 """Real YOLO benchmark on a licensed dataset — no hardcoded metrics.
 
-Dataset: Ultralytics COCO128 (128 images from MS COCO train2017)
+Dataset: Ultralytics COCO val2017 subset (300 genuinely held-out images)
 License: Creative Commons Attribution 4.0 (CC BY 4.0)
   https://cocodataset.org/#termsofuse
 
-Models are evaluated out-of-the-box (COCO-pretrained). No domain fine-tuning.
+Models are evaluated out-of-the-box (COCO-pretrained) on a held-out validation
+split to measure true generalization. No domain fine-tuning.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-COCO128_YAML = "coco128.yaml"
+COCO_VAL_YAML = "coco_val_subset.yaml"
 DEFAULT_MODELS = ("yolov5s.pt", "yolov8n.pt")
 
 
@@ -110,9 +111,9 @@ def save_results(results: list[ModelBenchmarkResult], output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "dataset": COCO128_YAML,
-        "dataset_license": "CC BY 4.0 (MS COCO via Ultralytics COCO128)",
-        "methodology": "Ultralytics model.val() on COCO128; latency = mean ms/image after warmup",
+        "dataset": COCO_VAL_YAML,
+        "dataset_license": "CC BY 4.0 (MS COCO val2017 subset)",
+        "methodology": "Ultralytics model.val() on held-out val2017 subset; latency = mean ms/image after warmup",
         "fine_tuning": "none — COCO-pretrained weights only",
         "models": [asdict(r) for r in results],
     }
@@ -191,8 +192,8 @@ def main() -> None:
     parser.add_argument("--weights-dir", type=Path, default=Path("weights"))
     parser.add_argument(
         "--data",
-        default=COCO128_YAML,
-        help="Ultralytics dataset YAML (default: coco128.yaml)",
+        default=COCO_VAL_YAML,
+        help="Ultralytics dataset YAML (default: coco_val_subset.yaml)",
     )
     parser.add_argument(
         "--output-dir",
@@ -225,7 +226,7 @@ def main() -> None:
         generate_charts(json_path, args.output_dir)
 
     print("\n=== Benchmark summary (paste into README) ===")
-    print(f"Dataset: {COCO128_YAML} (CC BY 4.0) — pretrained only, no fine-tuning\n")
+    print(f"Dataset: {COCO_VAL_YAML} (CC BY 4.0) — held-out validation subset, no fine-tuning\n")
     print_summary_table(results)
 
 

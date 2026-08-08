@@ -286,6 +286,11 @@ The pipeline is entirely driven by environment variables, managed via `pydantic-
 
 We provide a reproducible benchmark script to evaluate model accuracy (mAP) and inference latency on your specific hardware. 
 
+- **Dataset:** Ultralytics `coco_val_subset.yaml` — 300 images strictly sampled from the MS COCO val2017 split.
+- **Methodology:** `model.val()` is evaluated on this **genuinely held-out validation split** to measure true generalization. There is no overlap with the images the YOLO models saw during pre-training, avoiding the optimistic bias (data leakage) that occurs when evaluating against `coco128`.
+- **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Output:** `evaluation/results/benchmark_results.json` + bar chart, mAP comparison, correlation heatmaps)
+
 ```bash
 # Install benchmark dependencies (matplotlib, seaborn, pandas)
 pip install -e ".[benchmark]"
@@ -295,12 +300,12 @@ python -m disaster_vision.evaluation.benchmark
 
 ### Results (Local CPU Run)
 *Hardware: 11th Gen Intel Core i5-11300H @ 3.10GHz*
-*Dataset: Ultralytics COCO128 (128-image subset of MS COCO train2017)*
+*Dataset: Ultralytics COCO val2017 (300-image held-out subset)*
 
 | Model | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | Size (MB) | CPU Latency (ms) |
 |-------|---------|--------------|-----------|--------|-----------|------------------|
-| **yolov5s.pt** | 0.7354 | 0.5602 | 0.7959 | 0.6293 | 17.72 | 121.8 |
-| **yolov8n.pt** | 0.6054 | 0.4454 | 0.6385 | 0.5361 | 6.25 | 50.3 |
+| **yolov5s.pt** | 0.6349 | 0.4696 | 0.7483 | 0.5348 | 17.72 | 117.5 |
+| **yolov8n.pt** | 0.5728 | 0.4120 | 0.6560 | 0.4846 | 6.25 | 83.7 |
 
 *(Full visual charts including correlation heatmaps and bar comparisons are generated in `evaluation/results/`).*
 
@@ -333,7 +338,8 @@ Every push and pull request triggers a GitHub Actions workflow that:
 
 ## ⚠️ Limitations & Future Work
 
-* **Pre-trained Weights Only:** The current implementation uses models trained on the standard COCO dataset. They have **not** been fine-tuned on disaster-specific imagery (e.g., thermal imaging, aerial rubble, obscured bodies). For real-world deployment, fine-tuning on datasets like AIDER or VisDrone is highly recommended.
+* **Recall vs. Precision in Disaster Response:** For search-and-rescue applications, **recall** is the most critical metric. A missed detection (false negative) costs lives, whereas a false positive is a minor inconvenience. At standard confidence thresholds, the current pre-trained models capture roughly 48% to 53% of actual life-sign instances (as seen in the benchmark). This means a significant fraction of targets are currently missed.
+* **Pre-trained Weights Only:** The models use weights trained strictly on standard COCO images. Because they have **not** been fine-tuned on disaster-specific imagery (e.g., thermal imaging, aerial rubble, obscured bodies), the ~50% recall observed above will be even lower in real disaster conditions. Fine-tuning on datasets like AIDER or VisDrone is highly recommended to push recall to operational standards.
 * **In-Memory Deduplication:** The `AlertDeduplicator` state is stored in RAM. If the FastAPI server restarts, or if you run multiple instances behind a load balancer, deduplication state is lost. Future iterations should back this with Redis.
 * **Synchronous Video API:** The `/detect/video` endpoint processes the video and returns a single JSON response. For large videos, this will cause HTTP timeouts. Future iterations should implement WebSockets or Server-Sent Events (SSE) to stream detection results back to the client in real-time.
 

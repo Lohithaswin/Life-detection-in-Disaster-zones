@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-08-08T15:12:34.442497+00:00",
-  "dataset": "coco128.yaml",
-  "dataset_license": "CC BY 4.0 (MS COCO via Ultralytics COCO128)",
-  "methodology": "Ultralytics model.val() on COCO128; latency = mean ms/image after warmup",
+  "generated_at": "2026-08-08T16:29:42.465514+00:00",
+  "dataset": "coco_val_subset.yaml",
+  "dataset_license": "CC BY 4.0 (MS COCO val2017 subset)",
+  "methodology": "Ultralytics model.val() on held-out val2017 subset; latency = mean ms/image after warmup",
   "fine_tuning": "none \u2014 COCO-pretrained weights only",
   "models": [
     {
       "model": "yolov5s.pt",
       "model_size_mb": 17.72,
-      "precision": 0.7959,
-      "recall": 0.6293,
-      "map50": 0.7354,
-      "map50_95": 0.5602,
-      "inference_ms_cpu": 121.84,
+      "precision": 0.7483,
+      "recall": 0.5348,
+      "map50": 0.6349,
+      "map50_95": 0.4696,
+      "inference_ms_cpu": 117.45,
       "inference_ms_gpu": null,
       "device_gpu": null
     },
     {
       "model": "yolov8n.pt",
       "model_size_mb": 6.25,
-      "precision": 0.6385,
-      "recall": 0.5361,
-      "map50": 0.6054,
-      "map50_95": 0.4454,
-      "inference_ms_cpu": 50.3,
+      "precision": 0.656,
+      "recall": 0.4846,
+      "map50": 0.5728,
+      "map50_95": 0.412,
+      "inference_ms_cpu": 83.68,
       "inference_ms_gpu": null,
       "device_gpu": null
     }
