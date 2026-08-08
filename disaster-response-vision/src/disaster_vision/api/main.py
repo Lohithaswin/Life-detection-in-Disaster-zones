@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 import shutil
 import tempfile
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from collections.abc import AsyncIterator
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 

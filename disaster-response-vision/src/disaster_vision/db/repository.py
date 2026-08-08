@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from contextlib import contextmanager
 from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.engine import Engine
