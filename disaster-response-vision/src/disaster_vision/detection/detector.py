@@ -112,11 +112,11 @@ class Detector:
         )
 
         detections: list[Detection] = []
-        boxes = results[0].boxes
+        boxes = results[0].boxes  # type: ignore[index, union-attr]
         if boxes is None:
             return detections
 
-        for box in boxes:
+        for box in boxes:  # type: ignore[union-attr]
             class_id = int(box.cls[0])
             class_name = model.names[class_id]
             if life_only and class_name not in LIFE_CLASSES:

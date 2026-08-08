@@ -57,11 +57,11 @@ class VideoProcessor:
             verbose=False,
         )
         detections: list[Detection] = []
-        boxes = results[0].boxes
+        boxes = results[0].boxes  # type: ignore[index, union-attr]
         if boxes is None:
             return detections
 
-        for box in boxes:
+        for box in boxes:  # type: ignore[union-attr]
             class_id = int(box.cls[0])
             class_name = model.names[class_id]
             x1, y1, x2, y2 = box.xyxy[0].tolist()
